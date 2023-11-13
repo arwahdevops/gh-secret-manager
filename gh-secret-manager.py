@@ -3,13 +3,22 @@ from dotenv import load_dotenv
 import argparse
 import csv
 import requests
-import base64
+from base64 import b64encode, b64decode
+from nacl import public
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the GitHub token from the environment
-github_token = os.getenv("GITHUB_TOKEN")
+# Function to encrypt a secret value using the GitHub public key
+def encrypt(public_key: str, secret_value: str) -> str:
+    public_key_bytes = b64decode(public_key.encode("utf-8"))
+    if len(public_key_bytes) != 32:
+        raise ValueError("Invalid public key length")
+    
+    public_key_obj = public.PublicKey(public_key_bytes)
+    sealed_box = public.SealedBox(public_key_obj)
+    encrypted = sealed_box.encrypt(secret_value.encode("utf-8"))
+    return b64encode(encrypted).decode("utf-8")
 
 # Parsing command-line arguments
 parser = argparse.ArgumentParser(description='Script to add or update a secret in a GitHub repository.')
@@ -24,8 +33,9 @@ if not (args.owner and args.repo and args.file):
     exit(1)
 
 # Set up GitHub token
+github_token = os.getenv("GITHUB_TOKEN")
 headers = {
-    "Accept": "application/vnd.github.v3+json",
+    "Accept": "application/vnd.github+json",
     "Authorization": f"Bearer {github_token}",
 }
 
@@ -34,9 +44,10 @@ owner = args.owner
 repo = args.repo
 
 # Getting the latest public key
-response = requests.get(f'https://api.github.com/repos/{owner}/{repo}/actions/secrets/public-key', headers=headers)
-
 try:
+    response = requests.get(f'https://api.github.com/repos/{owner}/{repo}/actions/secrets/public-key', headers=headers)
+    response.raise_for_status()  # Raise an HTTPError for bad responses
+
     # Convert response to JSON format
     public_key_response = response.json()
 
@@ -50,12 +61,12 @@ try:
             secret_name = row['secret_name']
             secret_value = row['secret_value']
 
-            # Encode the secret value into base64
-            secret_value_base64 = base64.b64encode(secret_value.encode()).decode()
+            # Enkripsi nilai secret menggunakan kunci publik GitHub
+            encrypted_secret = encrypt(public_key, secret_value)
 
             # Prepare data for the request
             data = {
-                "encrypted_value": secret_value_base64,
+                "encrypted_value": encrypted_secret,
                 "key_id": public_key_response['key_id']
             }
 
@@ -70,7 +81,11 @@ try:
             else:
                 print(f"Error message: {response.text}")
 
+except requests.exceptions.RequestException as e:
+    print(f"Error in making the request: {e}")
 except ValueError as e:
-    print(f"Error while parsing JSON response: {e}")
+    print(f"Error: {e}")
 except FileNotFoundError as e:
     print(f"File not found: {e}")
+except Exception as e:
+    print(f"Unexpected error occurred: {e}")
