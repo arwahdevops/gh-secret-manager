@@ -32,18 +32,22 @@ GITHUB_TOKEN=your_generated_token_here
 ```
 Make sure to replace `your_generated_token_here` with the token you generated from GitHub.
 
-## Usage
+## Example Usage
 
-Run the script with the following command:
+Organization :
 ```
-python gh-secret-manager.py -o <owner> -r <repository> -f <file_name.csv>
+python main.py -t org -o <organization> -f <file_name.csv>
 ```
-
+Repository :
+```
+python main.py -t repo -o <owner> -r <repository> -f <file_name.csv>
+```
+- `-t` or `--type`: Specify the type of target (`org` for organization, `repo` for repository).
 - `-o` or `--owner`: Specify the repository owner name.
 - `-r` or `--repo`: Specify the repository name.
 - `-f` or `--file`: Specify the CSV file name containing the secrets.
 
-Make sure to replace `<owner>`, `<repository>`, and `<file_name.csv>` with the appropriate values.
+Make sure to replace `<organization>`, `<owner>`, `<repository>`, and `<file_name.csv>` with the appropriate values.
 
 ## License
 
